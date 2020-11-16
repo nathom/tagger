@@ -45,13 +45,13 @@ these tracks are named using the `$artist - $track.m4a` pattern.
 
 A file named `Back in the U.S.S.R by The Beatles.flac` would have the pattern `$track by $artist.flac`. There are other variables you can name such as `$year`, `$id`,  and `$album` but these are ignored in the search. You can use them to block out things in the file name that are obtrusive.
 
-Now, to actually do the tagging, type
+Now, to actually do the tagging, type:
 
 ```bash
 python3 ~/tagger/tag_tracks.py '/path/to/playlist' 'pattern'
 ```
 
-example:
+Example:
 
 ```bash
 python3 ~/tagger/tag_tracks.py '~/music/rapcaviar' '$artist - $track.m4a'
