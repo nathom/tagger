@@ -25,7 +25,7 @@ There are two options: tag an album or tag a bunch of random tracks in a directo
 python3 ~/tagger/tag_album.py '/path/to/album'
 ```
 
-Use the `-s` or `-d` flags to specify searching in Spotify or Discogs, respectively.
+Use the `-s` or `-d` flags to specify searching in Spotify or Discogs, respectively. It defaults to Spotify.
 
 ```bash
 python3 ~/tagger/tag_album.py -s '/path/to/album'
