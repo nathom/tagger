@@ -43,9 +43,13 @@ def set_tags(tags, no_disc=False):
 
         f['album'] = tags['album']
         # check if track has artist listed, else use album artist
-        try:
-            f['artist'] = track['artist']
-        except KeyError:
+        if 'artist' in track:
+            artist_str = ''
+            for a in track['artist']:
+                artist_str += a + ', ' * (len(track['artist']) > 1 and a != track['artist'][-1])
+
+            f['artist'] = artist_str
+        else:
             f['artist'] = tags['artist']
 
         f['totaltracks'] = tags['numtracks']
@@ -158,6 +162,7 @@ def matches_final(word, name, forgive=2):
         else:
             return False
 
+
     # case 1: substitution
     if len(name) == len(word):
         for i in range(len(name)):
@@ -166,7 +171,7 @@ def matches_final(word, name, forgive=2):
             if errors > forgive:
                 return False
 
-    # case 2: frameshift
+    # case 2: frameshift (insertion/deletion)
     else:
         large = name if len(name) > len(word) else word
         small = name if len(name) < len(word) else word
@@ -180,7 +185,7 @@ def matches_final(word, name, forgive=2):
                 large.pop(curr)
                 curr = 0
             curr += 1
-            if curr == len(small):
+            if curr == len(small) - 1:
                 break
             if len(large) == 0 or errors > forgive:
                 return False
@@ -291,9 +296,11 @@ def get_surrounding(s, vars):
 # formats the file name for searching
 def format(track):
     track = track.replace('.m4a', '')
+    track = track.replace('.flac', '')
     track = track.replace(' - ', ' ')
     track = track.replace("'", '')
     track = track.replace('"', '')
+    track = track.replace('_', '')
     # removes anything inside ()
     track = sub('\([^\(|^\)]+\)', '', track)
     # removes anything inside []

@@ -28,7 +28,7 @@ else:
 
 path = args.path
 
-# gets filename of path
+# gets filename from path
 filename =  path.split('/')[-1]
 
 # prepares filename for search, removes junk
