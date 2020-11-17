@@ -97,7 +97,7 @@ def match_tags(mod_tags, dir_path):
     sorted_paths = []
     for track in mod_tags['tracklist']:
         for filename in files:
-            keywords = findall("(?i)\w+[']?\w", format(track['name']))
+            keywords = format(track['name']).split(' ')
             is_match = True
             for word in keywords:
                 if matches(word, format(filename)):
