@@ -100,6 +100,8 @@ def match_tags(tags, dir_path):
                 counter += 1
                 tags['tracklist'][track['orig']]['path'] = path['orig']
 
+    # right now there are repeats so that counter > len(pathlist)
+    # TODO: fix it by making the matching more strict
     return tags, len(pathlist) - counter
 
 
