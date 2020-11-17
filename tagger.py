@@ -93,10 +93,10 @@ def match_tags(mod_tags, dir_path):
     sorted_paths = []
     for track in mod_tags['tracklist']:
         for filename in files:
-            keywords = findall("(?i)\w+[']?\w", track['name'])
+            keywords = findall("(?i)\w+[']?\w", format(track['name']))
             is_match = True
             for word in keywords:
-                if matches(word, filename):
+                if matches(word, format(filename)):
                     pass
                 else:
                     is_match = False
@@ -143,7 +143,7 @@ def matches(word, name):
     else:
         return True
 
-def matches_final(word, name, forgive=1):
+def matches_final(word, name, forgive=2):
     buffer = []
     errors = 0
     name = list(format(name))
@@ -300,6 +300,8 @@ def format(track):
     track = sub('\[[^\[|^\]]+\]', '', track)
     # removes feat. ...
     track = sub('[fF]eat[\s\S]+', '', track)
+    while track[-1] == ' ':
+        track = track[:-1]
     # removes anything thats not a letter or number
     # f = findall('[\w|\d|\ ]+', track)
     # track = ' '.join(f)
