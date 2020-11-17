@@ -40,7 +40,7 @@ def search_album(query, n=0):
         for track in info['tracks']:
             track['name'] = unescape(track['name'])
     except:
-        return 0
+        return None
 
     release = info['releaseOf']
     tracks = info['tracks']

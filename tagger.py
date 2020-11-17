@@ -84,44 +84,28 @@ def set_tags(tags, no_disc=False):
 # param dir_path: path of directory to search
 # return tuple: (dict: tags with 'path' key, list: files not matched)
 # TODO: improve matching algorithm
-def match_tags(mod_tags, dir_path):
 
-    getFilename = lambda path: path.split('/')[-1]
-    files = listdir(dir_path)
-    ext = lambda path: path.split('.')[-1]
-    for f in files:
-        if ext(f) != 'flac' and ext(f) != 'm4a':
-            files.remove(f)
+def match_tags(tags, dir_path):
+    tracklist = [{'formatted': format2(track['name']), 'orig':tags['tracklist'].index(track)} for track in tags['tracklist']]
+    pathlist = listdir(dir_path)
+    pathlist = [{'formatted': format2(path.split('/')[-1]), 'orig':f'{dir_path}/{path}'} for path in pathlist]
+    pprint = lambda s: print(json.dumps(s, indent=3))
+    pprint(pathlist)
+    pprint(tracklist)
 
-    files.sort()
-    sorted_paths = []
-    for track in mod_tags['tracklist']:
-        for filename in files:
-            keywords = format(track['name']).split(' ')
-            if '' in keywords:
-                keywords.remove('')
+    counter = 0
+    for track in tracklist:
+        for path in pathlist:
+            if matches(track['formatted'], path['formatted']):
+                counter += 1
+                tags['tracklist'][track['orig']]['path'] = path['orig']
 
-            is_match = True
-            for word in keywords:
-                if matches(word, format(filename)):
-                    pass
-                else:
-                    is_match = False
-                    break
-            if is_match:
-                try:
-                    mod_tags['tracklist'][mod_tags['tracklist'].index(track)]['path']
-                except KeyError:
-                    mod_tags['tracklist'][mod_tags['tracklist'].index(track)]['path'] = f'{dir_path}/{filename}'
-                    pass
+    return tags, len(pathlist) - counter
 
-    for track in mod_tags['tracklist']:
-        try:
-            files.remove(getFilename(track['path']))
-        except KeyError:
-            pass
 
-    return mod_tags, files
+
+
+
 
 # Utilities
 
@@ -218,7 +202,7 @@ def try_match(tags, path):
             not_found += 1
             pass
 
-    print(f'{len(not_matched)} file(s) not matched.')
+    print(f'{not_matched} file(s) not matched.')
 
 
 
@@ -318,3 +302,7 @@ def format(track):
 
     return track
 
+def format2(s):
+    formatted = ' '.join(findall('[a-zA-Z]+', s.replace('.m4a', ''))).strip()
+    formatted = formatted.replace('  ', ' ')
+    return formatted
