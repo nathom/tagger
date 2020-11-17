@@ -98,6 +98,9 @@ def match_tags(mod_tags, dir_path):
     for track in mod_tags['tracklist']:
         for filename in files:
             keywords = format(track['name']).split(' ')
+            if '' in keywords:
+                keywords.remove('')
+
             is_match = True
             for word in keywords:
                 if matches(word, format(filename)):
