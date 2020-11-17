@@ -24,7 +24,7 @@ if args.spotify:
 elif args.discogs:
     engine = discogs
 else:
-    engine = spotify
+    engine = discogs
 
 path = args.path
 
