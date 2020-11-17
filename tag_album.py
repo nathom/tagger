@@ -45,8 +45,16 @@ while unsatisfied:
     elif resp != '':
         tags = try_search(resp, path, n=item)
     else:
+        # get genre tag from discogs if not in spotify API
+        if not tags['genre'] and engine is spotify:
+            temp_tags = discogs.search_album(tags['album'] + ' ' + ' '.join(tags['artist']))
+            if temp_tags['genre']:
+                tags['genre'] = temp_tags['genre']
+
         matched_tags, not_matched = match_tags(tags, path)
         unsatisfied = False
+
+
 
 input('Press enter to confirm tags.')
 set_tags(matched_tags)
