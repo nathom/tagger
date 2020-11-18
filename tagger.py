@@ -87,9 +87,9 @@ def set_tags(tags, no_disc=False):
 # TODO: improve matching algorithm
 
 def match_tags(tags, dir_path):
-    tracklist = [{'formatted': format2(track['name']), 'orig':tags['tracklist'].index(track)} for track in tags['tracklist']]
+    tracklist = [{'formatted': format_title(track['name']), 'orig':tags['tracklist'].index(track)} for track in tags['tracklist']]
     pathlist = listdir(dir_path)
-    pathlist = [{'formatted': format2(path.split('/')[-1]), 'orig':f'{dir_path}/{path}'} for path in pathlist]
+    pathlist = [{'formatted': format_title(path.split('/')[-1]), 'orig':f'{dir_path}/{path}'} for path in pathlist]
     pprint = lambda s: print(json.dumps(s, indent=3))
 
     counter = 0
@@ -128,63 +128,54 @@ def colorize(text, color):
 # every word in the discogs track name must be in each file name
 # case insensitive
 # ignores single quotes
-def matches(word, name):
-    if word == name:
+def matches(track, path):
+    if track == path:
         return True
 
-    r = findall(f'(?i){word}', name)
-    if len(r) == 0:
-        return matches_final(word, name)
+    if len(track) == len(path):
+        return direct_match(track, path)
     else:
-        return True
+        return frameshift_match(track, path)
 
-def matches_final(word, name, forgive=2):
-    buffer = []
+
+def direct_match(first, second, forgive=2):
     errors = 0
-    name = list(format(name))
-    word = list(format(word))
-
-    not_matched = True
-
-    curr = 0
-    if len(word) == 0 or len(name) == 0:
-        return False
-
-    while name[0].lower() != word[0].lower():
-        if len(name) > 1:
-            name.pop(0)
-        else:
+    first, second = list(first.lower()), list(second.lower())
+    for i in range(len(first)):
+        if first[i] != second[i]:
+            errors += 1
+        if errors > forgive:
             return False
-
-
-    # case 1: substitution
-    if len(name) == len(word):
-        for i in range(len(name)):
-            if name[i] != word[i]:
-                errors += 1
-            if errors > forgive:
-                return False
-
-    # case 2: frameshift (insertion/deletion)
-    else:
-        large = name if len(name) > len(word) else word
-        small = name if len(name) < len(word) else word
-        if len(large)//len(small) >= 2:
-            return False
-
-        curr = 0
-        while True:
-            if large[curr] != small[curr]:
-                errors += 1
-                large.pop(curr)
-                curr = 0
-            curr += 1
-            if curr == len(small) - 1:
-                break
-            if len(large) == 0 or errors > forgive:
-                return False
-
     return True
+
+def frameshift_match(first, second, forgive=2):
+    first, second = list(first.lower()), list(second.lower())
+    errors = 0
+    not_matched = True
+    i = 0
+    while True:
+        if i > len(second) - 1 or i > len(first) - 1:
+            break
+
+        if first[i] != second[i]:
+            errors += 1
+            longer = first if len(first) > len(second) else second
+            longer.pop(i)
+            i -= 1
+        if errors > forgive:
+            return False
+
+        if first == second:
+            return True
+
+        i += 1
+    longer = first if len(first) > len(second) else second
+    shorter = first if len(first) < len(second) else second
+    # if the longer one has excess that can be forgiven
+    if longer[:len(shorter)] == shorter and errors + (len(longer) - len(shorter)) <= forgive:
+        return True
+
+
 
 def try_match(tags, path):
     setupterm()
@@ -203,7 +194,7 @@ def try_match(tags, path):
             name = colorize(track['name'], 1) + ' \u2192 '
             path = getFilename(track['path'])
             print(name, end='')
-            print(path.rjust(cols*3//5))
+            print(path.rjust(cols//2))
         except KeyError:
             name = colorize(track['name'], 1) + ' \u2192 '
             print(name, end='')
@@ -310,8 +301,12 @@ def format(track):
 
     return track
 
-def format2(s):
-    formatted = ' '.join(findall('[a-zA-Z]+', s.replace('.m4a', ''))).strip()
+def format_title(s):
+    # find words, only letters, without ext
+    # removes feat. ...
+    s = sub('[fF]eat[\s\S]+', '', s)
+    s = sub('(\.flac|\.m4a|\.wav)', '', s)
+    formatted = ' '.join(findall('[a-zA-Z]+', s)).strip()
     formatted = formatted.replace('  ', ' ')
     return formatted
 

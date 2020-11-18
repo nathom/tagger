@@ -21,10 +21,21 @@ args = parser.parse_args()
 
 if args.spotify:
     engine = spotify
+    other = discogs
+    other_abbrev = 'd'
+    info = "Type 'd' to switch search engine to discogs."
 elif args.discogs:
     engine = discogs
+    other = spotify
+    other_abbrev = 's'
+    info = "Type 's' to switch search engine to spotify."
 else:
+    # default
     engine = discogs
+    other = spotify
+    other_abbrev = 's'
+    info = "Type 's' to switch search engine to spotify."
+
 
 path = args.path
 
@@ -38,10 +49,13 @@ item = 0
 unsatisfied = True
 # query until satisfied
 while unsatisfied:
-    resp = input('Press enter to continue. Type \'n\' to get next result. Type anything else to manual search.\n')
+    resp = input(f'Press enter to continue. Type \'n\' to get next result. {info} Type anything else to manual search.\n')
     if resp == 'n':
         item += 1
         tags = try_search(query, path, n=item)
+    elif resp == other_abbrev:
+        engine = other
+        tags = try_search(query, path)
     elif resp != '':
         tags = try_search(resp, path, n=item)
     else:
