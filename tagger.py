@@ -8,6 +8,7 @@ from sys import argv
 from string import ascii_uppercase
 from html import unescape
 from progress.bar import IncrementalBar
+from curses import tigetnum, setupterm
 import music_tag
 
 import discogs
@@ -65,7 +66,7 @@ def set_tags(tags, no_disc=False):
         f['genre'] = genre_str
 
         # sets the artwork
-        album = tags['album']
+        album = tags['album'].replace('/', '|')
         title = track['name']
         art = requests.get(tags['image'])
         img_path = f'/Volumes/nathanbackup/Music/Artwork/{album}.jpg'
@@ -90,8 +91,6 @@ def match_tags(tags, dir_path):
     pathlist = listdir(dir_path)
     pathlist = [{'formatted': format2(path.split('/')[-1]), 'orig':f'{dir_path}/{path}'} for path in pathlist]
     pprint = lambda s: print(json.dumps(s, indent=3))
-    pprint(pathlist)
-    pprint(tracklist)
 
     counter = 0
     for track in tracklist:
@@ -130,6 +129,9 @@ def colorize(text, color):
 # case insensitive
 # ignores single quotes
 def matches(word, name):
+    if word == name:
+        return True
+
     r = findall(f'(?i){word}', name)
     if len(r) == 0:
         return matches_final(word, name)
@@ -145,6 +147,9 @@ def matches_final(word, name, forgive=2):
     not_matched = True
 
     curr = 0
+    if len(word) == 0 or len(name) == 0:
+        return False
+
     while name[0].lower() != word[0].lower():
         if len(name) > 1:
             name.pop(0)
@@ -182,6 +187,8 @@ def matches_final(word, name, forgive=2):
     return True
 
 def try_match(tags, path):
+    setupterm()
+    cols = tigetnum('cols')
     getFilename = lambda path: path.split('/')[-1]
     matched_tags, not_matched = match_tags(tags, path)
     not_found = 0
@@ -196,7 +203,7 @@ def try_match(tags, path):
             name = colorize(track['name'], 1) + ' \u2192 '
             path = getFilename(track['path'])
             print(name, end='')
-            print(path)
+            print(path.rjust(cols*3//5))
         except KeyError:
             name = colorize(track['name'], 1) + ' \u2192 '
             print(name, end='')
@@ -296,8 +303,7 @@ def format(track):
     track = sub('\[[^\[|^\]]+\]', '', track)
     # removes feat. ...
     track = sub('[fF]eat[\s\S]+', '', track)
-    while track[-1] == ' ':
-        track = track[:-1]
+    track = track.strip()
     # removes anything thats not a letter or number
     # f = findall('[\w|\d|\ ]+', track)
     # track = ' '.join(f)
@@ -308,3 +314,5 @@ def format2(s):
     formatted = ' '.join(findall('[a-zA-Z]+', s.replace('.m4a', ''))).strip()
     formatted = formatted.replace('  ', ' ')
     return formatted
+
+
