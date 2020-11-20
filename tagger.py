@@ -85,7 +85,7 @@ def set_tags(tags, no_disc=False):
 # param dir_path: path of directory to search
 # return tuple: (dict: tags with 'path' key, list: files not matched)
 def match_tags(tags, dir_path, pattern=None, ignore_paren=False):
-    tracklist = [{'formatted': format_title(track['name']), 'orig':tags['tracklist'].index(track)} for track in tags['tracklist']]
+    tracklist = [{'formatted': format_title(track['name'], paren=ignore_paren), 'orig':tags['tracklist'].index(track)} for track in tags['tracklist']]
     pathlist = []
     for path in listdir(dir_path):
         if '.flac' in path or '.m4a' in path:

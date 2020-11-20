@@ -46,7 +46,6 @@ else:
 path = args.path
 pattern = args.pattern
 ignore_paren = args.ignore_parentheses
-print(ignore_paren)
 # gets filename from path
 filename =  path.split('/')[-1]
 
