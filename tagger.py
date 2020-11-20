@@ -91,6 +91,7 @@ def match_tags(tags, dir_path, pattern=None, ignore_paren=False):
         if '.flac' in path or '.m4a' in path:
             pathlist.append(path)
 
+    pathlist.sort()
     # get filename
     fn = lambda path: path.split('/')[-1]
     if pattern:
@@ -113,9 +114,14 @@ def match_tags(tags, dir_path, pattern=None, ignore_paren=False):
 
     counter = 0
     used_paths = []
+    used_tracks = []
     for track in tracklist:
         for path in pathlist:
-            if matches(track['formatted'], path['formatted']) and path['orig'] not in used_paths:
+            if (
+                    matches(track['formatted'], path['formatted'])
+                    and path['orig'] not in used_paths
+                    and 'path' not in tags['tracklist'][track['orig']]
+                ):
                 counter += 1
                 tags['tracklist'][track['orig']]['path'] = path['orig']
                 used_paths.append(path['orig'])
