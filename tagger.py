@@ -84,23 +84,43 @@ def set_tags(tags, no_disc=False):
 # param tags: dict tags
 # param dir_path: path of directory to search
 # return tuple: (dict: tags with 'path' key, list: files not matched)
-# TODO: improve matching algorithm
-
-def match_tags(tags, dir_path):
+def match_tags(tags, dir_path, pattern=None, ignore_paren=False):
     tracklist = [{'formatted': format_title(track['name']), 'orig':tags['tracklist'].index(track)} for track in tags['tracklist']]
-    pathlist = listdir(dir_path)
-    pathlist = [{'formatted': format_title(path.split('/')[-1]), 'orig':f'{dir_path}/{path}'} for path in pathlist]
+    pathlist = []
+    for path in listdir(dir_path):
+        if '.flac' in path or '.m4a' in path:
+            pathlist.append(path)
+
+    # get filename
+    fn = lambda path: path.split('/')[-1]
+    if pattern:
+        pathlist = [
+            {
+                'formatted': format_title(parse_filenames(pattern, fn(path))['track'], paren=ignore_paren),
+                'orig':f'{dir_path}/{path}'
+            }
+            for path in pathlist]
+    else:
+        pathlist = [
+            {
+                'formatted': format_title(fn(path), paren=ignore_paren),
+                'orig':f'{dir_path}/{path}'
+            }
+            for path in pathlist]
+
+    # pretty print dicts
     pprint = lambda s: print(json.dumps(s, indent=3))
 
     counter = 0
+    used_paths = []
     for track in tracklist:
         for path in pathlist:
-            if matches(track['formatted'], path['formatted']):
+            if matches(track['formatted'], path['formatted']) and path['orig'] not in used_paths:
                 counter += 1
                 tags['tracklist'][track['orig']]['path'] = path['orig']
+                used_paths.append(path['orig'])
 
     # right now there are repeats so that counter > len(pathlist)
-    # TODO: fix it by making the matching more strict
     return tags, len(pathlist) - counter
 
 
@@ -177,11 +197,11 @@ def frameshift_match(first, second, forgive=2):
 
 
 
-def try_match(tags, path):
+def try_match(tags, path, pattern=None, ignore_paren=False):
     setupterm()
     cols = tigetnum('cols')
     getFilename = lambda path: path.split('/')[-1]
-    matched_tags, not_matched = match_tags(tags, path)
+    matched_tags, not_matched = match_tags(tags, path, pattern=pattern, ignore_paren=ignore_paren)
     not_found = 0
     album = matched_tags['album']
     artist = ''
@@ -238,7 +258,7 @@ returns dict = {
 '''
 def parse_filenames(pattern, name):
     is_var = False
-    possible_vars = ['$artist', '$track', '$album', '$year', '$id']
+    possible_vars = ['$artist', '$track', '$album', '$year', '$id', '$rand']
     buffer = []
     vars = []
     for char in pattern:
@@ -273,9 +293,9 @@ returns ['this is', 'and   ', ' and some other things']
 def get_surrounding(s, vars):
     surr = s.split(vars[0])
     for item in surr:
-        if vars[1] in item:
-            surr.extend(item.split(vars[1]))
-            surr.remove(item)
+        for var in vars:
+            if var in item:
+                surr.extend(item.split(var))
 
     if '' in surr: surr.remove('')
     return surr
@@ -301,10 +321,16 @@ def format(track):
 
     return track
 
-def format_title(s):
+def format_title(s, paren=False):
     # find words, only letters, without ext
     # removes feat. ...
     s = sub('[fF]eat[\s\S]+', '', s)
+    if paren:
+        # removes anything inside ()
+        s = sub('\([^\(|^\)]+\)', '', s)
+        # removes anything inside []
+        s = sub('\[[^\[|^\]]+\]', '', s)
+
     s = sub('(\.flac|\.m4a|\.wav)', '', s)
     formatted = ' '.join(findall('[a-zA-Z]+', s)).strip()
     formatted = formatted.replace('  ', ' ')
