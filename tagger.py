@@ -30,6 +30,7 @@ def set_tags(tags, cover_url):
                 audio[k] = str(v)
             ind += 1
 
+            print(cover_url)
             r = requests.get(cover_url)
             with open(cover_path, 'wb') as cov:
                 cov.write(r.content)
