@@ -20,25 +20,27 @@ def set_tags(tags, cover_url):
     f = [track['path'] for track in tags]
     [track.pop('path', None) for track in tags]
     ext = f[0].split('.')[-1]
-    parent_dir = ''.join(f[0].split('/')[:-1])
+    parent_dir = '/'.join(f[0].split('/')[:-1])
     cover_path = f'{parent_dir}/cover.jpg'
     ind = 0
     for file in f:
         if ext == 'flac':
             audio = FLAC(file)
             for k, v in tags[ind].items():
+                if k in ['ARTIST', 'COMPOSER', 'GENRE', 'ALBUMARTIST']:
+                    audio[k] =
                 audio[k] = str(v)
             ind += 1
 
             print(cover_url)
             r = requests.get(cover_url)
-            with open(cover_path, 'wb') as cov:
-                cov.write(r.content)
+            open(cover_path, 'wb').write(r.content)
+
             with open(cover_path, 'rb') as cov:
                 image = Picture()
                 image.type = 3
                 image.mome = 'image/jpeg'
-                image.data = cov_obj.read()
+                image.data = cov.read()
                 audio.add_picture(image)
 
             audio.save()
