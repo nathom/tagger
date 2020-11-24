@@ -1,4 +1,5 @@
 import requests
+from mutagen.flac import FLAC, Picture
 from bs4 import BeautifulSoup
 from re import findall, sub
 import json
@@ -12,72 +13,36 @@ from curses import tigetnum, setupterm
 import music_tag
 
 import discogs
+from rich.traceback import install
+install()
+
+def set_tags(tags, cover_url):
+    f = [track['path'] for track in tags]
+    [track.pop('path', None) for track in tags]
+    ext = f[0].split('.')[-1]
+    parent_dir = ''.join(f[0].split('/')[:-1])
+    cover_path = f'{parent_dir}/cover.jpg'
+    ind = 0
+    for file in f:
+        if ext == 'flac':
+            audio = FLAC(file)
+            for k, v in tags[ind].items():
+                audio[k] = str(v)
+            ind += 1
+
+            r = requests.get(cover_url)
+            with open(cover_path, 'wb') as cov:
+                cov.write(r.content)
+            with open(cover_path, 'rb') as cov:
+                image = Picture()
+                image.type = 3
+                image.mome = 'image/jpeg'
+                image.data = cov_obj.read()
+                audio.add_picture(image)
+
+            audio.save()
 
 
-# sets the tags
-# param: tag dict with filepath
-# return: None
-def set_tags(tags, no_disc=False):
-    nd = no_disc
-    # checks if the 'pos' key exists, if not just use track position
-    if not nd:
-        try:
-            tags['tracklist'][-1]['pos']
-        except KeyError:
-            nd = True
-
-    # list of genres -> str of genres sep by comma
-    genre_str = ''
-    for g in tags['genre']:
-        genre_str += (g + ', ' * ( len(tags['genre']) > 1 and g != tags['genre'][-1] ))
-
-    # progress bar
-    bar = IncrementalBar('Setting tags...', max = len(tags['tracklist']))
-
-    for track in tags['tracklist']:
-        bar.next()
-        index = tags['tracklist'].index(track)
-        try:
-            f = music_tag.load_file(track['path'])
-        except KeyError:
-            continue
-
-        f['album'] = tags['album']
-        # check if track has artist listed, else use album artist
-        if 'artist' in track:
-            artist_str = ''
-            for a in track['artist']:
-                artist_str += a + ', ' * (len(track['artist']) > 1 and a != track['artist'][-1])
-
-            f['artist'] = artist_str
-        else:
-            f['artist'] = tags['artist']
-
-        f['totaltracks'] = tags['numtracks']
-        f['tracktitle'] = track['name']
-        f['year'] = tags['year']
-
-        if nd:
-            f['tracknumber'] = index + 1
-        else:
-            f['discnumber'] = track['pos'][0]
-            f['tracknumber'] = track['pos'][1]
-
-        f['genre'] = genre_str
-
-        # sets the artwork
-        album = tags['album'].replace('/', '|')
-        title = track['name']
-        art = requests.get(tags['image'])
-        img_path = f'/Volumes/nathanbackup/Music/Artwork/{album}.jpg'
-        open(img_path, 'wb').write(art.content)
-
-        with open(img_path, 'rb') as img_in:
-            f['artwork'] = img_in.read()
-
-        f.save()
-
-    bar.finish()
 
 
 # matches tags with filepaths
@@ -85,7 +50,7 @@ def set_tags(tags, no_disc=False):
 # param dir_path: path of directory to search
 # return tuple: (dict: tags with 'path' key, list: files not matched)
 def match_tags(tags, dir_path, pattern=None, ignore_paren=False):
-    tracklist = [{'formatted': format_title(track['name'], paren=ignore_paren), 'orig':tags['tracklist'].index(track)} for track in tags['tracklist']]
+    tracklist = [{'formatted': format_title(track['TITLE'], paren=ignore_paren), 'orig':tags.index(track)} for track in tags]
     pathlist = []
     for path in listdir(dir_path):
         if '.flac' in path or '.m4a' in path:
@@ -120,10 +85,10 @@ def match_tags(tags, dir_path, pattern=None, ignore_paren=False):
             if (
                     matches(track['formatted'], path['formatted'])
                     and path['orig'] not in used_paths
-                    and 'path' not in tags['tracklist'][track['orig']]
+                    and 'path' not in tags[track['orig']]
                 ):
                 counter += 1
-                tags['tracklist'][track['orig']]['path'] = path['orig']
+                tags[track['orig']]['path'] = path['orig']
                 used_paths.append(path['orig'])
 
     # right now there are repeats so that counter > len(pathlist)
@@ -209,20 +174,20 @@ def try_match(tags, path, pattern=None, ignore_paren=False):
     getFilename = lambda path: path.split('/')[-1]
     matched_tags, not_matched = match_tags(tags, path, pattern=pattern, ignore_paren=ignore_paren)
     not_found = 0
-    album = matched_tags['album']
+    album = matched_tags[0]['ALBUM']
     artist = ''
-    for g in matched_tags['artist']:
-        artist += (g + ', ' * ( len(matched_tags['artist']) > 1 and g != matched_tags['artist'][-1] ))
+    for g in matched_tags[0]['ARTIST']:
+        artist += (g + ', ' * ( len(matched_tags[0]['ARTIST']) > 1 and g != matched_tags[0]['ARTIST'][-1] ))
 
     print(f'{artist} - {album}', end='\n\n')
-    for track in matched_tags['tracklist']:
+    for track in matched_tags:
         try:
-            name = colorize(track['name'], 1) + ' \u2192 '
+            name = colorize(track['TITLE'], 1) + ' \u2192 '
             path = getFilename(track['path'])
             print(name, end='')
             print(path.rjust(cols//2))
         except KeyError:
-            name = colorize(track['name'], 1) + ' \u2192 '
+            name = colorize(track['TITLE'], 1) + ' \u2192 '
             print(name, end='')
             print(colorize('Not found', 0))
             not_found += 1

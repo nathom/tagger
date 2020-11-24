@@ -7,10 +7,10 @@ def try_search(query, n=0):
     global path
     global pattern
     global ignore_paren
-    tags = engine.search_album(query, n=n)
+    tags, cover = engine.search_album(query, n=n)
     if tags:
         try_match(tags, path, pattern=pattern, ignore_paren=ignore_paren)
-        return tags
+        return tags, cover
     else:
         print('Matches could not automatically be found.')
         pass
@@ -51,7 +51,7 @@ filename =  path.split('/')[-1]
 
 # prepares filename for search, removes junk
 query = format(filename)
-tags = try_search(query)
+tags, cover = try_search(query)
 item = 0
 unsatisfied = True
 # query until satisfied
@@ -59,21 +59,21 @@ while unsatisfied:
     resp = input(f'Press enter to continue. Type \'n\' to get next result. {info} Type anything else to manual search.\n')
     if resp == 'n':
         item += 1
-        tags = try_search(query, n=item)
+        tags, cover = try_search(query, n=item)
     elif resp == other_abbrev:
         engine = other
         item = 0
-        tags = try_search(query)
+        tags, cover = try_search(query)
     elif resp != '':
         item = 0
-        tags = try_search(resp, n=item)
+        tags, cover = try_search(resp, n=item)
     else:
         # get genre tag from discogs if not in spotify API
-        if not tags['genre'] and engine is spotify:
+        if not tags[0]['GENRE'] and engine is spotify:
             try:
-                temp_tags = discogs.search_album(tags['album'] + ' ' + ' '.join(tags['artist']))
+                temp_tags, temp_cover = discogs.search_album(tags[0]['ARTIST'] + ' ' + ' '.join(tags[0]['ARTIST']))
                 if temp_tags:
-                    tags['genre'] = temp_tags['genre']
+                    tags[0]['GENRE'] = temp_tags[0]['GENRE']
             except:
                 pass
 
@@ -83,7 +83,7 @@ while unsatisfied:
 
 
 input('Press enter to confirm tags.')
-set_tags(matched_tags)
+set_tags(matched_tags, cover)
 print('Finished.')
 
 

@@ -1,9 +1,12 @@
 from requests import get
 from bs4 import BeautifulSoup
-from re import findall
+from re import findall, match, sub
 import json
 from string import ascii_uppercase
 from html import unescape
+
+PHONOGRAPHIC_COPYRIGHT = '\u2117'
+COPYRIGHT = '\u00a9'
 
 # param: query
 # return: dict tags
@@ -14,33 +17,39 @@ def search_album(query, n=0):
     base_url = 'https://www.discogs.com'
     url = f'https://www.discogs.com/search/?q={query_formatted}&type=release'
     r = get(url)
+    soup = BeautifulSoup(r.content, features='lxml')
+    links = soup.findAll("a", {"class": "search_result_title"})
+    result = str(links[n])
+    page = base_url + findall('href="[^"]+"', result)[0][6:-1]
+    r = get(page)
+    r.encoding = 'utf-8'
+    copyright_regex = '<span class="type">[^<]+Copyright[^<]+<\/span>[\s]+–[\s]+<a\ href="[\/\w\d-]+">[\w\d\ ]+<'
+
     try:
-        soup = BeautifulSoup(r.content, features='lxml')
-        links = soup.findAll("a", {"class": "search_result_title"})
-        result = str(links[n])
-        page = base_url + findall('href="[^"]+"', result)[0][6:-1]
-        r = get(page)
-        r.encoding = 'utf-8'
+        rights = findall(copyright_regex, unescape(r.text))[0]
+        rights2 = findall('>[\w\d\ /(\)]+<', rights)
+        right_type = sub('\([cC]\)', COPYRIGHT, rights2[0][1:-1])
+        right_type = sub('\([pP]\)', PHONOGRAPHIC_COPYRIGHT, rights2[0][1:-1])
+        copyright = right_type + ' ' + rights2[1][1:-1]
+    except IndexError:
+        copyright = None
 
-        # gets the included json on the top of discogs page source
-        start = '<script type="application\/ld\+json" id="release_schema">'
-        end = '<\/script>'
-        matches = findall(f'{start}[^<]+{end}', r.text)
-        plain_text = matches[0][len(start):-len(end)]
-        soup = BeautifulSoup(r.text, features='lxml')
+    # gets the included json on the top of discogs page source
+    start = '<script type="application\/ld\+json" id="release_schema">'
+    end = '<\/script>'
+    matches = findall(f'{start}[^<]+{end}', r.text)
+    plain_text = matches[0][len(start):-len(end)]
+    soup = BeautifulSoup(r.text, features='lxml')
 
-        artists = []
-        artists_found = soup.find_all('td', {'class': 'tracklist_track_artists'})
-        for artist in artists_found:
-            a = [s[2:-4] for s in findall('">[^<]+</a>', str(artist))]
-            artists.append(a)
+    artists = []
+    artists_found = soup.find_all('td', {'class': 'tracklist_track_artists'})
+    for artist in artists_found:
+        a = [s[2:-4] for s in findall('">[^<]+</a>', str(artist))]
+        artists.append(a)
 
-
-        info = json.loads(plain_text)
-        for track in info['tracks']:
-            track['name'] = unescape(track['name'])
-    except:
-        return None
+    info = json.loads(plain_text)
+    for track in info['tracks']:
+        track['name'] = unescape(track['name'])
 
     release = info['releaseOf']
     tracks = info['tracks']
@@ -75,5 +84,22 @@ def search_album(query, n=0):
         'year' : str(release['datePublished']), #int
         'label': labels
     }
-    return tags
+    new_tags = [{
+        'TITLE': track['name'],
+        'ARTIST': track['artist'] if 'artist' in track else [artist['name'] for artist in release['byArtist']],
+        'PERFORMER': track['artist'] if 'artist' in track else [artist['name'] for artist in release['byArtist']],
+        'DISCNUMBER': track['pos'][0] if 'pos' in track else None,
+        'TRACKNUMBER': track['pos'][1] if 'pos' in track else tracklist.index(track) + 1,
+        'GENRE': genres,
+        'ALBUMARTIST': [artist['name'] for artist in release['byArtist']],
+        'TRACKTOTAL': len(tracklist),
+        'DISCTOTAL': max([t['pos'][0] for t in tracklist]) if 'pos' in track else None,
+        'ALBUM': release['name'],
+        'LABEL': labels,
+        'COPYRIGHT': copyright,
+        'URL': page,
+        'DATE': str(release['datePublished']),
+        'YEAR': str(release['datePublished'])
+    } for track in tracklist]
+    return new_tags, info['image']
 
