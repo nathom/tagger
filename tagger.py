@@ -27,12 +27,13 @@ def set_tags(tags, cover_url):
         if ext == 'flac':
             audio = FLAC(file)
             for k, v in tags[ind].items():
+                # TODO: fix composer glitch where it displays as list
                 if k in ['ARTIST', 'COMPOSER', 'GENRE', 'ALBUMARTIST']:
-                    audio[k] =
-                audio[k] = str(v)
+                    audio[k] = format_list(v)
+                else:
+                    audio[k] = str(v)
             ind += 1
 
-            print(cover_url)
             r = requests.get(cover_url)
             open(cover_path, 'wb').write(r.content)
 
@@ -310,4 +311,10 @@ def format_title(s, paren=False):
     formatted = formatted.replace('  ', ' ')
     return formatted
 
+
+def format_list(l):
+    s = ''
+    for g in l:
+        s += (g + ', ' * ( len(l) > 1 and g != l[-1] ))
+    return s
 

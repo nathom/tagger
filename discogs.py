@@ -92,6 +92,7 @@ def search_album(query, n=0):
         'TRACKNUMBER': track['pos'][1] if 'pos' in track else tracklist.index(track) + 1,
         'GENRE': genres,
         'ALBUMARTIST': [artist['name'] for artist in release['byArtist']],
+        'COMPOSER': [artist['name'] for artist in release['byArtist']],
         'TRACKTOTAL': len(tracklist),
         'DISCTOTAL': max([t['pos'][0] for t in tracklist]) if 'pos' in track else None,
         'ALBUM': release['name'],
