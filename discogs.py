@@ -74,16 +74,6 @@ def search_album(query, n=0):
     else:
         genres = info['genre']
 
-    tags = {
-        'album' : release['name'], # String
-        'artist': [artist['name'] for artist in release['byArtist']], # list
-        'numtracks': release['numTracks'], # int
-        'tracklist' : tracklist, #list of dicts -> {name:String, duration:int secs, (optional)pos: (int disc, track)}
-        'image' : info['image'], #url
-        'genre' : genres, #list of genres
-        'year' : str(release['datePublished']), #int
-        'label': labels
-    }
     new_tags = [{
         'TITLE': track['name'],
         'ARTIST': track['artist'] if 'artist' in track else [artist['name'] for artist in release['byArtist']],

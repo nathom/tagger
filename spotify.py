@@ -22,22 +22,27 @@ def search_album(query, n=0):
         'image': album_info['images'][0]['url']
     } for track in album_info['tracks']['items']]
 
-    album = {
-        'source': 'spotify',
-        'type': 'album',
-        'album': album_info['name'],
-        'artist': [artist['name'] for artist in album_info['artists']],
-        'tracklist': tracklist,
-        'numtracks': album_info['total_tracks'],
-        'image': album_info['images'][0]['url'],
-        'genre': album_info['genres'],
-        'year': album_info['release_date'][:4],
-        'label': album_info['label'],
-        'copyright': [c['text'] for c in album_info['copyrights']]
-    }
 
-    return album
+    new_tags = [{
+        'TITLE': track['name'],
+        'ARTIST': track['artist'],
+        'PERFORMER': track['artist'],
+        'DISCNUMBER': track['pos'][0],
+        'TRACKNUMBER': track['pos'][1],
+        'GENRE': album_info['genres'],
+        'ALBUMARTIST': [artist['name'] for artist in album_info['artists']],
+        'COMPOSER': [artist['name'] for artist in release['byArtist']],
+        'TRACKTOTAL': len(tracklist),
+        'DISCTOTAL': max([t['pos'][0] for t in tracklist]),
+        'ALBUM': album_info['name'],
+        'LABEL': album_info['label'],
+        'COPYRIGHT': [c['text'] for c in album_info['copyrights']],
+        'DATE': album_info['release_date'],
+        'YEAR': album_info['release_date'][:4]
+    } for track in tracklist]
 
+
+    return new_tags, album_info['images'][0]['url']
 
 def search_track(query, n=0):
     r = s.search(q=query, type='track')
@@ -47,17 +52,32 @@ def search_track(query, n=0):
     except IndexError:
         return
 
-    album = result['album']
+    album_uri = result['album']['uri']
+    album = s.album(album_uri)
+    tracklist = album['tracks']['items']
 
-    track = {
-        'source': 'spotify',
-        'type': 'track',
-        'name': result['name'],
-        'artist': [artist['name'] for artist in result['artists']],
-        'album': album['name'],
-        'year': album['release_date'][:4],
-        'image': album['images'][0]['url']
-    }
+    track_number = 1
+    total_tracks = 0
+    for track in tracklist:
+        total_tracks += 1
+        if track['uri'] == result['uri']:
+            track_number = track['track_number']
 
-    return track
+    new_tags = [{
+        'TITLE': result['name'],
+        'ARTIST': [artist['name'] for artist in result['artists']],
+        'PERFORMER': [artist['name'] for artist in result['artists']],
+        'TRACKNUMBER': track_number,
+        'GENRE': album['genres'],
+        'ALBUMARTIST': [artist['name'] for artist in album['artists']],
+        'COMPOSER': [artist['name'] for artist in album['artists']],
+        'TRACKTOTAL': album['total_tracks'],
+        'ALBUM': album['name'],
+        'LABEL': album['label'],
+        'COPYRIGHT': [c['text'] for c in album['copyrights']],
+        'DATE': album['release_date'],
+        'YEAR': album['release_date'][:4]
+    } for track in tracklist]
+
+    return new_tags, album['images'][0]['url']
 
