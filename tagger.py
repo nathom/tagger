@@ -1,6 +1,5 @@
 import requests
 from mutagen.flac import FLAC, Picture
-from bs4 import BeautifulSoup
 from re import findall, sub
 import json
 from os import listdir, rename, system
@@ -10,11 +9,8 @@ from string import ascii_uppercase
 from html import unescape
 from progress.bar import IncrementalBar
 from curses import tigetnum, setupterm
-import music_tag
 
 import discogs
-from rich.traceback import install
-install()
 
 def set_tags(tags, cover_url):
     f = [track['path'] for track in tags]
@@ -29,6 +25,7 @@ def set_tags(tags, cover_url):
             for k, v in tags[ind].items():
                 # TODO: fix composer glitch where it displays as list
                 if k in ['ARTIST', 'COMPOSER', 'GENRE', 'ALBUMARTIST']:
+                    print(k, format_list(v))
                     audio[k] = format_list(v)
                 else:
                     audio[k] = str(v)
@@ -307,14 +304,16 @@ def format_title(s, paren=False):
         s = sub('\[[^\[|^\]]+\]', '', s)
 
     s = sub('(\.flac|\.m4a|\.wav)', '', s)
+    s = sub('[\'"]', '', s)
     formatted = ' '.join(findall('[a-zA-Z]+', s)).strip()
     formatted = formatted.replace('  ', ' ')
     return formatted
 
 
-def format_list(l):
+def format_list(l) -> str:
     s = ''
     for g in l:
         s += (g + ', ' * ( len(l) > 1 and g != l[-1] ))
+    print(type(s))
     return s
 

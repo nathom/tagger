@@ -1,6 +1,4 @@
 requests
-bs4
 progress
-music_tag
 argparse
 spotipy

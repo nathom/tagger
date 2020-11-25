@@ -1,10 +1,10 @@
 from requests import get
-from bs4 import BeautifulSoup
 from re import findall, match, sub
 import json
 from string import ascii_uppercase
 from html import unescape
 
+# unicode symbols
 PHONOGRAPHIC_COPYRIGHT = '\u2117'
 COPYRIGHT = '\u00a9'
 
@@ -17,22 +17,18 @@ def search_album(query, n=0):
     base_url = 'https://www.discogs.com'
     url = f'https://www.discogs.com/search/?q={query_formatted}&type=release'
     r = get(url)
-    soup = BeautifulSoup(r.content, features='lxml')
-    links = soup.findAll("a", {"class": "search_result_title"})
-    result = str(links[n])
-    page = base_url + findall('href="[^"]+"', result)[0][6:-1]
+    results_regex = '<a\ href="([\w\d\/-]+)" class="search_result_title"'
+    results = findall(results_regex, r.text)
+    result_url = results[n]
+    page = base_url + result_url
     r = get(page)
     r.encoding = 'utf-8'
-    copyright_regex = '<span class="type">[^<]+Copyright[^<]+<\/span>[\s]+–[\s]+<a\ href="[\/\w\d-]+">[\w\d\ ]+<'
+    copyright_regex = '<span class="type">([^<]+Copyright[^<]+)<\/span>[^<]+<a href="[^"]+">([^<]+)<\/a>'
 
-    try:
-        rights = findall(copyright_regex, unescape(r.text))[0]
-        rights2 = findall('>[\w\d\ /(\)]+<', rights)
-        right_type = sub('\([cC]\)', COPYRIGHT, rights2[0][1:-1])
-        right_type = sub('\([pP]\)', PHONOGRAPHIC_COPYRIGHT, rights2[0][1:-1])
-        copyright = right_type + ' ' + rights2[1][1:-1]
-    except IndexError:
-        copyright = None
+    rights = findall(copyright_regex, unescape(r.text))[0]
+    right_type = sub('\([cC]\)', COPYRIGHT, rights[0])
+    right_type = sub('\([pP]\)', PHONOGRAPHIC_COPYRIGHT, rights[0])
+    copyright = right_type + ' ' + rights[1]
 
     # gets the included json on the top of discogs page source
     start = '<script type="application\/ld\+json" id="release_schema">'
@@ -82,7 +78,6 @@ def search_album(query, n=0):
         'TRACKNUMBER': track['pos'][1] if 'pos' in track else tracklist.index(track) + 1,
         'GENRE': genres,
         'ALBUMARTIST': [artist['name'] for artist in release['byArtist']],
-        'COMPOSER': [artist['name'] for artist in release['byArtist']],
         'TRACKTOTAL': len(tracklist),
         'DISCTOTAL': max([t['pos'][0] for t in tracklist]) if 'pos' in track else None,
         'ALBUM': release['name'],

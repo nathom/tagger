@@ -13,6 +13,7 @@ def try_search(query, n=0):
         return tags, cover
     else:
         print('Matches could not automatically be found.')
+        return None, None
         pass
 
 # parses args
@@ -50,7 +51,7 @@ ignore_paren = args.ignore_parentheses
 filename =  path.split('/')[-1]
 
 # prepares filename for search, removes junk
-query = format(filename)
+query = format_title(filename)
 tags, cover = try_search(query)
 item = 0
 unsatisfied = True

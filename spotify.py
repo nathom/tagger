@@ -9,7 +9,7 @@ def search_album(query, n=0):
     try:
         uri = result[n]['uri']
     except IndexError:
-        return
+        return None, None
 
     album_info = s.album(uri)
 
@@ -31,7 +31,6 @@ def search_album(query, n=0):
         'TRACKNUMBER': track['pos'][1],
         'GENRE': album_info['genres'],
         'ALBUMARTIST': [artist['name'] for artist in album_info['artists']],
-        'COMPOSER': [artist['name'] for artist in release['byArtist']],
         'TRACKTOTAL': len(tracklist),
         'DISCTOTAL': max([t['pos'][0] for t in tracklist]),
         'ALBUM': album_info['name'],
@@ -70,7 +69,6 @@ def search_track(query, n=0):
         'TRACKNUMBER': track_number,
         'GENRE': album['genres'],
         'ALBUMARTIST': [artist['name'] for artist in album['artists']],
-        'COMPOSER': [artist['name'] for artist in album['artists']],
         'TRACKTOTAL': album['total_tracks'],
         'ALBUM': album['name'],
         'LABEL': album['label'],
