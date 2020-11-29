@@ -10,7 +10,6 @@ from html import unescape
 from progress.bar import IncrementalBar
 from curses import tigetnum, setupterm
 
-import discogs
 
 def set_tags(tags, cover_url):
     f = [track['path'] for track in tags]
