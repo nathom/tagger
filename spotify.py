@@ -1,81 +1,115 @@
 from os import system
+import json
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 
-s = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id='b69d1047383b485aa4c18906b036fb16', client_secret='01fc99ce735c4ddb8ca509eed50f0e80'))
-def search_album(query, n=0):
-    r = s.search(q=f"album:{query}", type='album')
-    result = r['albums']['items']
-    try:
-        uri = result[n]['uri']
-    except IndexError:
-        return None, None
+from bases import Track
 
-    album_info = s.album(uri)
+client = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id='b69d1047383b485aa4c18906b036fb16', client_secret='01fc99ce735c4ddb8ca509eed50f0e80'))
 
-    tracklist = [{
-        'source': 'spotify',
-        'type': 'album',
-        'name': track['name'],
-        'artist': [artist['name'] for artist in track['artists']],
-        'pos': (track['disc_number'], track['track_number']),
-        'image': album_info['images'][0]['url']
-    } for track in album_info['tracks']['items']]
+class search_album(object):
+    def __init__(self, query):
+        self.curr_item = 0
+        self.tracklist = []
+        r = client.search(q=f"album:{query}", type='album')
+        self.result = r['albums']['items']
+        self.get_tags()
+
+    def next(self):
+        self.curr_item += 1
+        self.get_tags()
+
+    @property
+    def album(self) -> dict:
+        uri = self.result[self.curr_item]['uri']
+        return self.client.album(uri)
+
+    def get_tags(self) -> None:
+        album_info = self.album.copy()
+        self.tracklist = [Track(
+            name = track['name'],
+            artist = [artist['name'] for artist in track['artists']],
+            album = album_info['name'],
+            albumartist = [artist['name'] for artist in album_info['artists']],
+            tracktotal = len(album_info['tracks']['items']),
+            genre = album_info['genres'],
+            copyright = [c['text'] for c in album_info['copyrights']],
+            date = album_info['release_date'],
+            year = album_info['release_date'][:-4],
+            label = album_info['label'],
+            pos = (track['disc_number'], track['track_number']),
+            cover_url = album_info['images'][0]['url']
+        ) for track in album_info['tracks']['items']]
+
+    def __str__(self):
+        return '\n'.join(list(map(str, self.tracklist)))
+
+    def __getitem__(self, key) -> Track:
+        return self.tracklist[key]
+
+    def __setitem__(self, key, val):
+        self.tracklist[key] = val
 
 
-    new_tags = [{
-        'TITLE': track['name'],
-        'ARTIST': track['artist'],
-        'PERFORMER': track['artist'],
-        'DISCNUMBER': track['pos'][0],
-        'TRACKNUMBER': track['pos'][1],
-        'GENRE': album_info['genres'],
-        'ALBUMARTIST': [artist['name'] for artist in album_info['artists']],
-        'TRACKTOTAL': len(tracklist),
-        'DISCTOTAL': max([t['pos'][0] for t in tracklist]),
-        'ALBUM': album_info['name'],
-        'LABEL': album_info['label'],
-        'COPYRIGHT': [c['text'] for c in album_info['copyrights']],
-        'DATE': album_info['release_date'],
-        'YEAR': album_info['release_date'][:4]
-    } for track in tracklist]
+class search_track(object):
+    def __init__(self, query):
+        self.curr_item = 0
+        self.track = None
+        self.r = client.search(q=query, type='track')
+        self.get_tags()
+
+    def next(self):
+        self.curr_item += 1
+        self.get_tags()
+
+    @property
+    def album(self):
+        uri = self.result['album']['uri']
+        return client.album(uri)
+
+    @property
+    def result(self):
+        try:
+            return self.r['tracks']['items'][self.curr_item]
+        except KeyError:
+            raise Exception('No results found')
+
+    def get_tags(self):
+        result = self.result.copy()
+        album = self.album.copy()
+        tracklist = album['tracks']['items']
+
+        track_number = 1
+        for track in tracklist:
+            if track['uri'] == result['uri']:
+                track_number = track['track_number']
 
 
-    return new_tags, album_info['images'][0]['url']
+        self.track = Track()
+        self.track['title'] = result['name']
+        self.track['artist'] = [artist['name'] for artist in result['artists']]
+        self.track['performer'] = [artist['name'] for artist in result['artists']]
+        self.track['genre'] = album['genres']
+        self.track['albumartist'] = [artist['name'] for artist in album['artists']]
+        self.track['tracknumber'] = track_number
+        self.track['tracktotal'] = album['total_tracks']
+        self.track['album'] = album['name']
+        self.track['label'] = album['label']
+        self.track['copyright'] = [c['text'] for c in album['copyrights']]
+        self.track['date'] = album['release_date']
+        self.track['year'] = album['release_date'][:4]
+        self.track['cover_url'] = album['images'][0]['url']
 
-def search_track(query, n=0):
-    r = s.search(q=query, type='track')
+    def __str__(self):
+        return str(self.track)
 
-    try:
-        result = r['tracks']['items'][n]
-    except IndexError:
-        return
+    def __getitem__(self, key):
+        return self.tracklist[key]
 
-    album_uri = result['album']['uri']
-    album = s.album(album_uri)
-    tracklist = album['tracks']['items']
+    def __setitem__(self, key, val):
+        self.tracklist[key] = val
 
-    track_number = 1
-    total_tracks = 0
-    for track in tracklist:
-        total_tracks += 1
-        if track['uri'] == result['uri']:
-            track_number = track['track_number']
 
-    new_tags = [{
-        'TITLE': result['name'],
-        'ARTIST': [artist['name'] for artist in result['artists']],
-        'PERFORMER': [artist['name'] for artist in result['artists']],
-        'TRACKNUMBER': track_number,
-        'GENRE': album['genres'],
-        'ALBUMARTIST': [artist['name'] for artist in album['artists']],
-        'TRACKTOTAL': album['total_tracks'],
-        'ALBUM': album['name'],
-        'LABEL': album['label'],
-        'COPYRIGHT': [c['text'] for c in album['copyrights']],
-        'DATE': album['release_date'],
-        'YEAR': album['release_date'][:4]
-    } for track in tracklist]
 
-    return new_tags, album['images'][0]['url']
-
+s = search_track('back in the ussr')
+print(s)
