@@ -308,7 +308,7 @@ def format_title(s, paren=False):
     formatted = formatted.replace('  ', ' ')
     return formatted
 
-
+.upper()
 def format_list(l) -> str:
     s = ''
     for g in l:

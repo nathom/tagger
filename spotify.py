@@ -1,4 +1,4 @@
-from os import system
+import os
 import json
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
@@ -22,27 +22,41 @@ class search_album(object):
     @property
     def album(self) -> dict:
         uri = self.result[self.curr_item]['uri']
-        return self.client.album(uri)
+        return client.album(uri)
 
     def get_tags(self) -> None:
-        album_info = self.album.copy()
+        album = self.album.copy()
+        disctotal = max([track['disc_number'] for track in album['tracks']['items']])
         self.tracklist = [Track(
-            name = track['name'],
+            title = track['name'],
             artist = [artist['name'] for artist in track['artists']],
-            album = album_info['name'],
-            albumartist = [artist['name'] for artist in album_info['artists']],
-            tracktotal = len(album_info['tracks']['items']),
-            genre = album_info['genres'],
-            copyright = [c['text'] for c in album_info['copyrights']],
-            date = album_info['release_date'],
-            year = album_info['release_date'][:-4],
-            label = album_info['label'],
+            album = album['name'],
+            albumartist = [artist['name'] for artist in album['artists']],
+            tracktotal = len(album['tracks']['items']),
+            disctotal = disctotal,
+            genre = album['genres'],
+            copyright = [c['text'] for c in album['copyrights']],
+            date = album['release_date'],
+            year = album['release_date'][:4],
+            label = album['label'],
             pos = (track['disc_number'], track['track_number']),
-            cover_url = album_info['images'][0]['url']
-        ) for track in album_info['tracks']['items']]
+            cover_url = album['images'][0]['url']
+        ) for track in album['tracks']['items']]
+
+    def matches(self, path: str) -> int:
+        counter = 0
+        for track in self.tracklist:
+            for file in os.listdir(path):
+                if track.matches(os.path.join(path, file)):
+                    counter += 1
+
+        return counter
 
     def __str__(self):
         return '\n'.join(list(map(str, self.tracklist)))
+
+    def __len__(self):
+        return len(self.tracklist)
 
     def __getitem__(self, key) -> Track:
         return self.tracklist[key]
@@ -84,6 +98,8 @@ class search_track(object):
             if track['uri'] == result['uri']:
                 track_number = track['track_number']
 
+        disctotal = max([track['disc_number'] for track in album['info']['items']])
+
 
         self.track = Track()
         self.track['title'] = result['name']
@@ -93,6 +109,7 @@ class search_track(object):
         self.track['albumartist'] = [artist['name'] for artist in album['artists']]
         self.track['tracknumber'] = track_number
         self.track['tracktotal'] = album['total_tracks']
+        self.track['disctotal'] = disctotal
         self.track['album'] = album['name']
         self.track['label'] = album['label']
         self.track['copyright'] = [c['text'] for c in album['copyrights']]
@@ -104,12 +121,10 @@ class search_track(object):
         return str(self.track)
 
     def __getitem__(self, key):
-        return self.tracklist[key]
+        return self.track[key]
 
     def __setitem__(self, key, val):
-        self.tracklist[key] = val
+        self.track[key] = val
 
 
 
-s = search_track('back in the ussr')
-print(s)

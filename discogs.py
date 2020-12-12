@@ -74,23 +74,23 @@ class search_album(object):
         # TODO: make this more efficient/readable
         if len(track_pos) == len(tracks) == len(artists):
             self.tracklist = [Track(
-                name=unescape(tracks[i]['name']),
-                length=format(tracks[i]['duration']),
-                pos=track_pos[i],
-                artist=artists[i])
+                title = unescape(tracks[i]['name']),
+                length = format(tracks[i]['duration']),
+                pos = track_pos[i],
+                artist = artists[i])
             for i in range(len(tracks))]
 
         elif len(track_pos) == len(tracks):
             self.tracklist = [Track(
-                name=unescape(tracks[i]['name']),
-                length=format(tracks[i]['duration']),
-                pos=track_pos[i])
+                title = unescape(tracks[i]['name']),
+                length = format(tracks[i]['duration']),
+                pos = track_pos[i])
             for i in range(len(tracks))]
 
         else:
             self.tracklist = [Track(
-                name=unescape(tracks[i]['name']),
-                length=format(tracks[i]['duration']))
+                title = unescape(tracks[i]['name']),
+                length = format(tracks[i]['duration']))
             for i in range(len(tracks))]
 
         genre = info['genre'][0]
