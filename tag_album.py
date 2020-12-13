@@ -1,91 +1,103 @@
-from tagger import *
+import re
+import argparse
+import os
+from tqdm import tqdm
+
 import spotify
 import discogs
-import argparse
 
-def try_search(query, n=0):
-    global path
-    global pattern
-    global ignore_paren
-    tags, cover = engine.search_album(query, n=n)
-    if tags:
-        try_match(tags, path, pattern=pattern, ignore_paren=ignore_paren)
-        return tags, cover
+def match(album, dir, pattern, quiet=False):
+    for file in os.listdir(dir):
+        for track in album:
+            if track.matches(f"{dir}/{file}", pattern=pattern):
+                if not quiet:
+                    print(colorize(track['title'], 1), end='')
+                    print(' \u2192 ', end='')
+                    print(file)
+
+
+    for track in album:
+        if track['filepath'] is None and not quiet:
+            print(colorize(track['title'], 0), end='')
+            print(' \u2192 ', end='')
+            print(file)
+
+
+def tag_all(album, quiet=False):
+    if quiet:
+        iter = album
     else:
-        print('Matches could not automatically be found.')
-        return None, None
-        pass
+        iter = tqdm(album, unit='tracks')
+    for track in iter:
+        if track['filepath'] is not None:
+            track.tag()
+
+
+
+
+
+def colorize(text, color):
+    if color != '':
+        COLOR = {
+        "GREEN": "\033[92m",
+        "RED": "\033[91m",
+        "ENDC": "\033[0m",
+        }
+        return color * COLOR['GREEN'] + (1 - color) * COLOR['RED'] + text + COLOR['ENDC']
+    else:
+        return text
+
 
 # parses args
 parser = argparse.ArgumentParser()
 parser.add_argument('path', help='path to album')
 
 parser.add_argument('-p', '--pattern', nargs='?', help='pattern of track names e.g. $track - $artist.flac', default=None)
-parser.add_argument('-ip', '--ignore-parentheses', help='ignore things in brackets or parentheses when matching filenames with tracks', action='store_true')
 parser.add_argument('-s', '--spotify', help='search on spotify', action='store_true')
 parser.add_argument('-d', '--discogs', help='search on discogs', action='store_true')
 args = parser.parse_args()
 
+engines = [spotify, discogs]
 if args.spotify:
-    engine = spotify
-    other = discogs
-    other_abbrev = 'd'
-    info = "Type 'd' to switch search engine to discogs."
+    engine_num = 0
 elif args.discogs:
-    engine = discogs
-    other = spotify
-    other_abbrev = 's'
-    info = "Type 's' to switch search engine to spotify."
+    engine_num = 1
 else:
     # default
-    engine = discogs
-    other = spotify
-    other_abbrev = 's'
-    info = "Type 's' to switch search engine to spotify."
-
+    engine_num = 1
 
 path = args.path
 pattern = args.pattern
-ignore_paren = args.ignore_parentheses
-# gets filename from path
-filename =  path.split('/')[-1]
 
 # prepares filename for search, removes junk
-query = format_title(filename)
-tags, cover = try_search(query)
+query = ' '.join(re.findall('[\w\d]+', ' '.join(path.split('/')[-2:])))
 item = 0
-unsatisfied = True
-# query until satisfied
-while unsatisfied:
-    resp = input(f'Press enter to continue. Type \'n\' to get next result. {info} Type anything else to manual search.\n')
-    if resp == 'n':
-        item += 1
-        tags, cover = try_search(query, n=item)
-    elif resp == other_abbrev:
-        engine = other
-        item = 0
-        tags, cover = try_search(query)
-    elif resp != '':
-        item = 0
-        tags, cover = try_search(resp, n=item)
-    else:
-        # get genre tag from discogs if not in spotify API
-        if not tags[0]['GENRE'] and engine is spotify:
-            try:
-                temp_tags, temp_cover = discogs.search_album(tags[0]['ARTIST'] + ' ' + ' '.join(tags[0]['ARTIST']))
-                if temp_tags:
-                    tags[0]['GENRE'] = temp_tags[0]['GENRE']
-            except:
-                pass
 
-        matched_tags, not_matched = match_tags(tags, path)
+engine = engines[engine_num]
+album = engine.search_album(query)
+match(album, path, pattern)
+
+
+unsatisfied = True
+while unsatisfied:
+    resp = input(f'Press enter to continue. Type "n" to get next result. Type "s" to switch engines. Type anything else to manual search.\n')
+    if resp == 'n':
+        album.next()
+        match(album, path, pattern)
+    elif resp == "s":
+        engine_num = ~engine_num
+        engine = engines[engine_num]
+        album = engine.search_album(query)
+        match(album, path, pattern)
+    elif resp != '':
+        album = engine.search_album(query)
+        match(album, path, pattern)
+    else:
+        tag_all(album)
         unsatisfied = False
 
 
 
-input('Press enter to confirm tags.')
-set_tags(matched_tags, cover)
-print('Finished.')
 
 
 

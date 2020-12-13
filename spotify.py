@@ -21,7 +21,11 @@ class search_album(object):
 
     @property
     def album(self) -> dict:
-        uri = self.result[self.curr_item]['uri']
+        try:
+            uri = self.result[self.curr_item]['uri']
+        except IndexError:
+            raise Exception('No results found')
+
         return client.album(uri)
 
     def get_tags(self) -> None:
@@ -85,7 +89,7 @@ class search_track(object):
     def result(self):
         try:
             return self.r['tracks']['items'][self.curr_item]
-        except KeyError:
+        except IndexError:
             raise Exception('No results found')
 
     def get_tags(self):

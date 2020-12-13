@@ -27,24 +27,40 @@ class search_album(object):
         r = requests.get(url)
         r.encoding = 'utf-8'
         self.results = re.findall(results_regex, r.text)
+        self.get_tags()
 
 
 
     @property
-    def page(self):
+    def page(self) -> str:
+        if len(self.results) == 0:
+            raise Exception('No results found, search again')
         return self.base_url + self.results[self.curr_item]
 
     def next(self):
         self.curr_item += 1
         self.get_tags()
 
+
+    def matches(self, path: str) -> int:
+        counter = 0
+        for track in self.tracklist:
+            for file in os.listdir(path):
+                if track.matches(os.path.join(path, file)):
+                    counter += 1
+
+        return counter
+
     def get_tags(self):
         r = requests.get(self.page)
         copyright_regex = '<span class="type">([^<]+Copyright[^<]+)<\/span>[^<]+<a href="[^"]+">([^<]+)<\/a>'
-        rights = re.findall(copyright_regex, unescape(r.text))[0]
-        right_type = re.sub('\([cC]\)', COPYRIGHT, rights[0])
-        right_type = re.sub('\([pP]\)', PHONOGRAPHIC_COPYRIGHT, rights[0])
-        copyright = right_type + ' ' + rights[1]#
+        try:
+            rights = re.findall(copyright_regex, unescape(r.text))[0]
+            right_type = re.sub('\([cC]\)', COPYRIGHT, rights[0])
+            right_type = re.sub('\([pP]\)', PHONOGRAPHIC_COPYRIGHT, rights[0])
+            copyright = right_type + ' ' + rights[1]#
+        except IndexError:
+            copyright = None
 
         # gets the included json on the top of discogs page source
         start = '<script type="application\/ld\+json" id="release_schema">'
@@ -53,7 +69,7 @@ class search_album(object):
         plain_text = matches[0][len(start):-len(end)]
         soup = BeautifulSoup(r.text, features="html.parser")
 
-        artists = []#
+        artists = []
         artists_found = soup.find_all('td', {'class': 'tracklist_track_artists'})
         for artist in artists_found:
             a = [s[2:-4] for s in re.findall('">[^<]+</a>', str(artist))]
@@ -105,6 +121,8 @@ class search_album(object):
             track['url'] = self.page
             track['album'] = info['releaseOf']['name']
             track['copyright'] = copyright
+            if track['artist'] is None:
+                track['artist'] = artists
 
 
     def __str__(self):
@@ -116,12 +134,8 @@ class search_album(object):
     def __setitem__(self, i, track):
         self.tracklist[i] = track
 
-
-
-
-s = search_album('abbey road')
-s.get_tags()
-print(s)
+    def __len__(self):
+        return len(self.tracklist)
 
 
 

@@ -1,14 +1,17 @@
 import os
 import re
 import spotify
+import discogs
 
-dir = '/Volumes/nathanbackup/Library/Paul Hiller/Terry Riley_ In C'
-query = dir.split('/')[-1]
-query = re.sub(r'[^\w^\d^\ ]', '', query)
+dir = '/Volumes/nathanbackup/Library/Roedelius/Drauf und Dran'
+query = ' '.join(re.findall('[\w\d]+', ' '.join(dir.split('/')[-2:])))
 print(query)
-album = spotify.search_album(query)
-print(album['album'])
-num_matches = album.matches(dir)
-print(f'{num_matches}/{len(album)} matched')
+album = discogs.search_album(query)
+for file in os.listdir(dir):
+    for track in album:
+        if track.matches(os.path.join(dir, file)):
+            track.tag()
+
 for track in album:
-    track.tag()
+    if track['filepath'] is None:
+        print(track['title'], track.tracknumber)
