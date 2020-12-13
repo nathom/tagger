@@ -2,3 +2,4 @@ requests
 progress
 argparse
 spotipy
+tqdm
