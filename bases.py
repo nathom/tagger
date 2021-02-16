@@ -61,7 +61,7 @@ class Track(object):
             for k, v in self.__dict__.items():
                 # TODO: fix composer glitch where it displays as list
                 if k in ['ARTIST', 'COMPOSER', 'GENRE', 'ALBUMARTIST'] and type(v) is list:
-                    audio[k.upper()] = self._format_list(v)
+                    audio[k.upper()] = ', '.join(v)
                 elif k not in ['filepath', 'cover_url', 'pos', 'length']:
                     audio[k] = str(v)
 
@@ -72,7 +72,7 @@ class Track(object):
                 if k not in ['filepath', 'cover_url', 'pos', 'length', 'date', 'label', 'url', 'tracktotal', 'disctotal', 'artist'] and v is not None:
                     audio[_mp4_keys[k]] = v
                 elif k in ['artist']:
-                    audio[_mp4_keys[k]] = _format_list(v)
+                    audio[_mp4_keys[k]] = ', '.join(v)
 
             audio[_mp4_keys['tracknumber']] = [(self.tracknumber, self.tracktotal)]
             audio[_mp4_keys['discnumber']] = [(self.discnumber, self.disctotal)]
@@ -80,10 +80,14 @@ class Track(object):
             audio.save()
 
 
-    def matches(self, path: str, change_path=True, pattern=None) -> bool:
+    def matches(self, path: str, change_path=True,
+                pattern=None, ignore_parens=False) -> bool:
         '''Checks if the track title matches a filepath.
         Use an absolute path or set change_path to False.
         See _parse_pattern docstring for how to use a pattern.'''
+
+        if ignore_parens:
+            path = re.sub(r'\([^\)]+\)', '', path)
 
         if pattern is not None:
             p = _parse_pattern(pattern, path.split('/')[-1])
@@ -138,7 +142,7 @@ class Track(object):
         return [MP4Cover(r.content, imageformat=fmt)]
 
 
-    def __str__(self):
+    def __str__(self) -> str:
         d = {}
         for k, v in self.__dict__.items():
             if v is not None:
@@ -146,14 +150,14 @@ class Track(object):
 
         return json.dumps(d, indent=3)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return json.dumps(self.__dict__, indent=2)
 
 
     def __getitem__(self, key):
         return self.__dict__[key]
 
-    def __setitem__(self, key, val):
+    def __setitem__(self, key: str, val) -> None:
         self.__dict__[key] = val
 
 
@@ -236,7 +240,8 @@ def _format_title(s: str, paren=False) -> str:
     formatted = formatted.replace('  ', ' ')
     return formatted
 
-def _parse_pattern(pattern: str, s: str) -> dict:
+
+def _parse_pattern(pattern: str, path: str, ignore_paren=False) -> dict:
     '''Parses patterns that specify information in the filename.
     This is useful for removing artifacts that may be missed by the formatter.
 
@@ -253,60 +258,40 @@ def _parse_pattern(pattern: str, s: str) -> dict:
     Only the "title" key is used for searching in this class.
     '''
 
-    curr_key = ''
-    curr_val = ''
+    curr_key = []
+    curr_bound = []
+    bounds = []
     keys = []
-    vals = []
-
-    delim = ''
-    i = j = 0
-    while i < len(pattern):
-        if pattern[i] == '<':
-            # adds var name to keys
-            i += 1
-            while pattern[i] != '>':
-                curr_key += pattern[i]
-                i += 1
-            i += 1
-            keys.append(curr_key)
-            curr_key = ''
-
-            # gets chars in between variables or end of string
-            while i < len(pattern) and pattern[i] != '<':
-                delim += pattern[i]
-                i += 1
-
-            # checks whether the next set of chars match delim
-            while s[j:j + len(delim)] != delim:
-                curr_val += s[j]
-                j += 1
-
-            # shifts j so that delim is not included in the next round
-            j += len(delim)
-
-            vals.append(curr_val)
-            curr_val = ''
-            delim = ''
-
-
+    is_key = False
+    for c in pattern:
+        if c == '<':
+            is_key = True
+            if len(curr_bound) > 0:
+                bounds.append(''.join(curr_bound))
+                curr_bound = []
+        elif c == '>':
+            is_key = False
+            if len(curr_key) > 0:
+                keys.append(''.join(curr_key))
+                curr_key = []
         else:
-            i += 1
-            j += 1
+            if is_key:
+                curr_key.append(c)
+            else:
+                curr_bound.append(c)
 
+    if len(curr_bound) > 0:
+        bounds.append(''.join(curr_bound))
 
-    return dict(zip(keys, vals))
-
-
-
-def _format_list(l: list) -> str:
-    '''Puts commas (,) in between items in the list'''
-
-    s = ''
-    for g in l:
-        s += (g + ', ' * ( len(l) > 1 and g != l[-1] ))
-    return s
-
-
+    # finds whatever is outside the bounds
+    bounds = [re.escape(s) for s in bounds]
+    something = r'([\s\S]+?)'
+    regex = something + something.join(bounds)
+    vals = re.findall(regex, path)
+    print(pattern)
+    print(path)
+    print(vals)
+    return dict(zip(keys, vals[0]))
 
 
 

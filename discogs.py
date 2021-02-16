@@ -27,9 +27,9 @@ class search_album:
         self.curr_item = 0
 
         query_formatted = query.replace(' ', '+')
-        url = f'https://www.discogs.com/search/?q={query_formatted}&type=release'
+        self.url = f'https://www.discogs.com/search/?q={query_formatted}&type=release'
         results_regex = '<a\ href="([\w\d\/-]+)" class="search_result_title"'
-        r = requests.get(url)
+        r = requests.get(self.url)
         r.encoding = 'utf-8'
         self.results = re.findall(results_regex, r.text)
         self.get_tags()
@@ -74,31 +74,86 @@ class search_album:
         copy(matches)
         info = json.loads(matches)['data']
         release_key = None
+        image_key = None
         for key in info.keys():
             if 'Release' in key and 'Master' not in key:
                 release_key = key
+            elif 'Image' in key and '}' not in key:
+                image_key = key
+
 
         if release_key is None:
             raise Exception('Release information not found in json')
+        if image_key is None:
+            raise Exception('Image info not found in json.')
 
-        for track in info[release_key]['tracks']:
+        self.__parse_track_info(info[release_key], info[image_key])
+
+
+    # TODO: make it so that discs have two sides instead of one
+    def __parse_track_info(self, album: dict, img: dict) -> None:
+        # get copyright, phonographic cr, and label
+        copyrights = []
+        album_label = None
+        for label in album['labels']:
+            if label['labelRole'] == 'PHONOGRAPHIC_COPYRIGHT':
+                copyrights.append(f'{PHONOGRAPHIC_COPYRIGHT} {label["label"]["name"]}')
+            elif label['labelRole'] == 'COPYRIGHT':
+                copyrights.append(f'{COPYRIGHT} {label["label"]["name"]}')
+            elif label['labelRole'] == 'LABEL':
+                album_label = label['label']['name']
+
+
+        # values that all tracks share
+        album_artist = ', '.join([artist['artist']['name'] for artist in album['primaryArtists']])
+        global_info = {
+            'album': album['title'],
+            'artist': album_artist,
+            'albumartist': album_artist,
+            'genre': ', '.join(album['genres'][:3]),
+            'year': int(album['released'][:4]),
+            'label': album_label,
+            'copyright': ' '.join(copyrights),
+            'date': album['released'],
+            # deal with wierd formatting in json
+            'cover_url': re.findall(r'https[^"]+', img['fullsize']['__ref'])[0],
+            'url': self.url,
+        }
+
+        pos_list = []
+        # set values
+        for track in album['tracks']:
+            # this means it is a heading or something else
             if track['trackType'] != 'TRACK':
                 continue
 
-            # pos = track['position']
-            # if pos is none:
-                # print(track)
-                # continue
-            print(track['position'])
-            self.__pos_from_alnum(track['position'])
+            t = Track(**global_info)
+            t.title = track['title']
+            t.length = track['durationInSeconds']
+
+            t.pos = self.__pos_from_alnum(track['position'])
+            pos_list.append(t.pos)
+
+            self.tracklist.append(t)
+
+        # post-processing
+        tracktotal = len(pos_list)
+        disctotal = max((p[0] for p in pos_list))
+        for track in self.tracklist:
+            track.tracktotal = tracktotal
+            track.disctotal = disctotal
+
+
+
 
     def __pos_from_alnum(self, position: str) -> tuple:
         '''Get the position as tuple from alphanumeric position
         A1 -> (1, 1)
         D12 -> (4, 12)
         '''
-        r = re.findall('(\w)(\d+)', position)
-        print(r)
+        r = re.findall('(\w)(\d+)', position)[0]
+        # convert letter to number (starting at 1)
+        return (ascii_uppercase.index(r[0])+1, int(r[1]))
 
 
 

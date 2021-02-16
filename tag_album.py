@@ -10,17 +10,17 @@ import discogs
 def match(album, dir, pattern, quiet=False):
     for file in find('flac', 'm4a', dir=dir):
         for track in album:
-            if track.matches(file, pattern=pattern):
+            if track.matches(file, pattern=pattern, ignore_parens=args.ignore_parens):
                 if not quiet:
                     print(colorize(track['title'], 1), end='')
-                    print(' \u2192 ', end='')
+                    print(' -> ', end='')
                     print(file.split('/')[-1])
 
 
     for track in album:
         if track['filepath'] is None and not quiet:
             print(colorize(track['title'], 0), end='')
-            print(' \u2192 ', end='')
+            print(' -> ', end='')
             print('?')
 
 
@@ -62,9 +62,10 @@ def colorize(text, color):
 parser = argparse.ArgumentParser()
 parser.add_argument('path', help='path to album')
 
-parser.add_argument('-p', '--pattern', nargs='?', help='pattern of track names e.g. <track> - <artist>.flac', default=None)
 parser.add_argument('-s', '--spotify', help='search on spotify', action='store_true')
 parser.add_argument('-d', '--discogs', help='search on discogs', action='store_true')
+parser.add_argument('-p', '--pattern', nargs='?', help='pattern of track names e.g. <track> - <artist>.flac', default=None)
+parser.add_argument('-i', '--ignore-parens', help='ignore any text in parentheses when matching', action='store_true')
 args = parser.parse_args()
 
 engines = [spotify, discogs]
