@@ -132,6 +132,7 @@ class Track(object):
             fmt = MP4Cover.FORMAT_PNG
 
 
+        # TODO: make it so that you dont need to request for every tag
         r = requests.get(self.cover_url)
         return [MP4Cover(r.content, imageformat=fmt)]
 

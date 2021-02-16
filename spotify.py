@@ -24,7 +24,7 @@ class search_album(object):
         try:
             uri = self.result[self.curr_item]['uri']
         except IndexError:
-            raise Exception('No results found')
+            raise ValueError('No results found, use another query')
 
         return client.album(uri)
 

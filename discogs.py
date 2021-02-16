@@ -15,7 +15,7 @@ COPYRIGHT = '\u00a9'
 # searches discogs releases for query
 # returns first result by default
 
-class search_album(object):
+class search_album:
     def __init__(self, query):
         self.base_url = 'https://www.discogs.com'
         self.tracklist = []
@@ -23,6 +23,7 @@ class search_album(object):
 
         query_formatted = query.replace(' ', '+')
         url = f'https://www.discogs.com/search/?q={query_formatted}&type=release'
+        print(url)
         results_regex = '<a\ href="([\w\d\/-]+)" class="search_result_title"'
         r = requests.get(url)
         r.encoding = 'utf-8'
@@ -75,6 +76,7 @@ class search_album(object):
             a = [s[2:-4] for s in re.findall('">[^<]+</a>', str(artist))]
             artists.append(a)
 
+        print(plain_text)
         info = json.loads(plain_text)
         for track in info['tracks']:
             track['name'] = unescape(track['name'])
@@ -84,10 +86,12 @@ class search_album(object):
         labels = [label['name'] for label in info['recordLabel']]
         alph = list(ascii_uppercase)
         track_pos = [(alph.index(pos[1:-1][0]) + 1, int(pos[1:-1][1:])) for pos in re.findall('"[A-Z]\d\d?"', r.text)]
+        if track_pos == []:
+            track_pos = [(1, i) for i in range(1, len(tracks)+1)]
+
 
         format = lambda str_time: (int(str_time[2]) * 3600 + int(str_time[4:6].replace('0', '', 1)) * 60 + int(str_time[7:9].replace('0', '', 1)))
 
-        # TODO: make this more efficient/readable
         if len(track_pos) == len(tracks) == len(artists):
             self.tracklist = [Track(
                 title = unescape(tracks[i]['name']),
@@ -118,6 +122,7 @@ class search_album(object):
             track['date'] = str(info['releaseOf']['datePublished'])
             track['tracktotal'] = len(self.tracklist)
             track['disctotal'] = max([t['pos'][0] for t in self.tracklist])
+
             track['url'] = self.page
             track['album'] = info['releaseOf']['name']
             track['copyright'] = copyright
@@ -136,6 +141,4 @@ class search_album(object):
 
     def __len__(self):
         return len(self.tracklist)
-
-
 
