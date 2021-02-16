@@ -6,6 +6,11 @@ from html import unescape
 from bs4 import BeautifulSoup
 
 from bases import Track
+
+# imports for testing
+from pyperclip import copy
+
+
 # unicode symbols
 PHONOGRAPHIC_COPYRIGHT = '\u2117'
 COPYRIGHT = '\u00a9'
@@ -23,7 +28,6 @@ class search_album:
 
         query_formatted = query.replace(' ', '+')
         url = f'https://www.discogs.com/search/?q={query_formatted}&type=release'
-        print(url)
         results_regex = '<a\ href="([\w\d\/-]+)" class="search_result_title"'
         r = requests.get(url)
         r.encoding = 'utf-8'
@@ -64,70 +68,38 @@ class search_album:
             copyright = None
 
         # gets the included json on the top of discogs page source
-        start = '<script type="application\/ld\+json" id="release_schema">'
-        end = '<\/script>'
-        matches = re.findall(f'{start}[^<]+{end}', r.text)
-        plain_text = matches[0][len(start):-len(end)]
-        soup = BeautifulSoup(r.text, features="html.parser")
+        start = r'<script id="dsdata" type="application\/json">'
+        end = r'<\/script>'
+        matches = re.findall(f'{start}([\\s\\S]+?){end}', r.text)[0]
+        copy(matches)
+        info = json.loads(matches)['data']
+        release_key = None
+        for key in info.keys():
+            if 'Release' in key and 'Master' not in key:
+                release_key = key
 
-        artists = []
-        artists_found = soup.find_all('td', {'class': 'tracklist_track_artists'})
-        for artist in artists_found:
-            a = [s[2:-4] for s in re.findall('">[^<]+</a>', str(artist))]
-            artists.append(a)
+        if release_key is None:
+            raise Exception('Release information not found in json')
 
-        print(plain_text)
-        info = json.loads(plain_text)
-        for track in info['tracks']:
-            track['name'] = unescape(track['name'])
+        for track in info[release_key]['tracks']:
+            if track['trackType'] != 'TRACK':
+                continue
 
-        release = info['releaseOf']
-        tracks = info['tracks']
-        labels = [label['name'] for label in info['recordLabel']]
-        alph = list(ascii_uppercase)
-        track_pos = [(alph.index(pos[1:-1][0]) + 1, int(pos[1:-1][1:])) for pos in re.findall('"[A-Z]\d\d?"', r.text)]
-        if track_pos == []:
-            track_pos = [(1, i) for i in range(1, len(tracks)+1)]
+            # pos = track['position']
+            # if pos is none:
+                # print(track)
+                # continue
+            print(track['position'])
+            self.__pos_from_alnum(track['position'])
 
+    def __pos_from_alnum(self, position: str) -> tuple:
+        '''Get the position as tuple from alphanumeric position
+        A1 -> (1, 1)
+        D12 -> (4, 12)
+        '''
+        r = re.findall('(\w)(\d+)', position)
+        print(r)
 
-        format = lambda str_time: (int(str_time[2]) * 3600 + int(str_time[4:6].replace('0', '', 1)) * 60 + int(str_time[7:9].replace('0', '', 1)))
-
-        if len(track_pos) == len(tracks) == len(artists):
-            self.tracklist = [Track(
-                title = unescape(tracks[i]['name']),
-                length = format(tracks[i]['duration']),
-                pos = track_pos[i],
-                artist = artists[i])
-            for i in range(len(tracks))]
-
-        elif len(track_pos) == len(tracks):
-            self.tracklist = [Track(
-                title = unescape(tracks[i]['name']),
-                length = format(tracks[i]['duration']),
-                pos = track_pos[i])
-            for i in range(len(tracks))]
-
-        else:
-            self.tracklist = [Track(
-                title = unescape(tracks[i]['name']),
-                length = format(tracks[i]['duration']))
-            for i in range(len(tracks))]
-
-        genre = info['genre'][0]
-
-        for track in self.tracklist:
-            track['genre'] = genre
-            track['cover_url'] = info['image']
-            track['year'] = str(info['releaseOf']['datePublished'])
-            track['date'] = str(info['releaseOf']['datePublished'])
-            track['tracktotal'] = len(self.tracklist)
-            track['disctotal'] = max([t['pos'][0] for t in self.tracklist])
-
-            track['url'] = self.page
-            track['album'] = info['releaseOf']['name']
-            track['copyright'] = copyright
-            if track['artist'] is None:
-                track['artist'] = artists
 
 
     def __str__(self):

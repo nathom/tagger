@@ -46,6 +46,7 @@ class Track(object):
         self.length = None
         self.cover_url = None
         self.tracktotal = None
+        self.lyrics = None
         self.disctotal = None
 
         for k, v in kwargs.items():
