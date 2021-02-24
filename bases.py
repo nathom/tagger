@@ -60,7 +60,7 @@ class Track(object):
             audio = FLAC(self.filepath)
             for k, v in self.__dict__.items():
                 # TODO: fix composer glitch where it displays as list
-                if k in ['ARTIST', 'COMPOSER', 'GENRE', 'ALBUMARTIST'] and type(v) is list:
+                if k.upper() in ['ARTIST', 'COMPOSER', 'GENRE', 'ALBUMARTIST'] and type(v) is list:
                     audio[k.upper()] = ', '.join(v)
                 elif k not in ['filepath', 'cover_url', 'pos', 'length']:
                     audio[k] = str(v)
@@ -288,9 +288,6 @@ def _parse_pattern(pattern: str, path: str, ignore_paren=False) -> dict:
     something = r'([\s\S]+?)'
     regex = something + something.join(bounds)
     vals = re.findall(regex, path)
-    print(pattern)
-    print(path)
-    print(vals)
     return dict(zip(keys, vals[0]))
 
 

@@ -105,13 +105,13 @@ class search_album:
 
 
         # values that all tracks share
-        album_artist = ', '.join([artist['artist']['name'] for artist in album['primaryArtists']])
+        album_artists = [artist['artist']['name'] for artist in album['primaryArtists']]
         global_info = {
             'album': album['title'],
-            'artist': album_artist,
-            'albumartist': album_artist,
+            'artist': album_artists,
+            'albumartist': album_artists,
             'genre': ', '.join(album['genres'][:3]),
-            'year': int(album['released'][:4]),
+            'year': album['released'][:4],
             'label': album_label,
             'copyright': ' '.join(copyrights),
             'date': album['released'],
